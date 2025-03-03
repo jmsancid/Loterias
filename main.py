@@ -2,14 +2,14 @@
 # -*- coding: cp1252 -*-
 
 from estadisticas import analiza
-from myFunctions import seleccionaCombinaciones, printCombinaciones, getSeason, combinacionExistente, check_to_add
+from myFunctions import seleccionaCombinaciones, printCombinaciones, getSeason, check_to_add, comprueba_premios
 import constants as cte
 from clases import PrimiDB, EuroDB
-from dbUpdate import dbUpdate, sqlSaveCombinations
+from dbUpdate import dbUpdate
 
 from datetime import datetime, timedelta
 import pickle
-
+from pathlib import Path
 
 
 def main():
@@ -44,39 +44,49 @@ with open(archivo_pickle, "rb") as archivo:
     print(objetos_cargados)
 
 """
+    # Ruta del archivo
+    archivo_pickle = Path(cte.PICKLEDIR + cte.LOTOPICKERFILE)
 
-    pickleLotoDb = {
-        "primiResults": [],
-        "allPrimi": [],
-        "allPrimiSeason": [],
-        "allPrimiWeek": [],
-        "primiLunes": [],
-        "primiLunesSeason": [],
-        "primiLunesWeek": [],
-        "primiJueves": [],
-        "primiJuevesSeason": [],
-        "primiJuevesWeek": [],
-        "primiSabado": [],
-        "primiSabadoSeason": [],
-        "primiSabadoWeek": [],
-        "euroResults": [],
-        "allEuro": [],
-        "allEuroSeason": [],
-        "allEuroWeek": [],
-        "euroMartes": [],
-        "euroMartesSeason": [],
-        "euroMartesWeek": [],
-        "euroViernes": [],
-        "euroViernesSeason": [],
-        "euroViernesWeek": []
-    }
+    # Comprobar si existe
+    if archivo_pickle.exists():
+        # Leer la lista de objetos desde el archivo pickle
+        with open(archivo_pickle, "rb") as f:
+            pickleLotoDb = pickle.load(f)
+            print("Lista de objetos cargada desde el archivo:")
+            # print(objetos_cargados)
+    else:
+        pickleLotoDb = {
+            "primiResults": [],
+            "allPrimi": [],
+            "allPrimiSeason": [],
+            "allPrimiWeek": [],
+            "primiLunes": [],
+            "primiLunesSeason": [],
+            "primiLunesWeek": [],
+            "primiJueves": [],
+            "primiJuevesSeason": [],
+            "primiJuevesWeek": [],
+            "primiSabado": [],
+            "primiSabadoSeason": [],
+            "primiSabadoWeek": [],
+            "euroResults": [],
+            "allEuro": [],
+            "allEuroSeason": [],
+            "allEuroWeek": [],
+            "euroMartes": [],
+            "euroMartesSeason": [],
+            "euroMartesWeek": [],
+            "euroViernes": [],
+            "euroViernesSeason": [],
+            "euroViernesWeek": []
+        }
 
-    archivo_pickle = cte.PICKLEDIR + cte.LOTOPICKERFILE
     currentSeason = getSeason(datetime.now())  # obtengo la estación actual
     semana_actual = datetime.now().isocalendar().week
     semana_siguiente = (datetime.now() + timedelta(weeks=1)).isocalendar().week
     semana_actual = semana_actual if datetime.now().isoweekday() < 7 else semana_siguiente  # los domingos considero
     # ya el número de semana siguiente
+    ano_actual = datetime.now().isocalendar().year
 
     # Obtengo las fechas de los días de sorteo de la semana actual para asignárselo a las combinaciones
     # correspondientes. Si el sorteo ya ha pasado, se asigna la fecha a la de la semana siguiente. Por ejemplo, si
@@ -86,15 +96,16 @@ with open(archivo_pickle, "rb") as archivo:
     # año se les asigna el miércoles
     # A estas combinaciones se les asigna la fecha del lunes de la semana actual
     hoy = datetime.now().isoweekday()
+    this_week_monday = (datetime.now() + timedelta(days=1-hoy)).date()
     next_monday = (datetime.now() + timedelta(days=8-hoy)).date()
 
-    lunes = datetime.now().date() if hoy == 1 else next_monday
-    martes = datetime.now().date() if hoy == 2 else next_monday + timedelta(days=1)
-    miercoles = datetime.now().date() if hoy == 3 else next_monday + timedelta(days=3)
-    jueves = datetime.now().date() if hoy == 4 else next_monday + timedelta(days=4)
-    viernes = datetime.now().date() if hoy == 5 else next_monday + timedelta(days=5)
-    sabado = datetime.now().date() if hoy == 6 else next_monday + timedelta(days=6)
-    domingo = datetime.now().date() if hoy == 7 else next_monday + timedelta(days=7)
+    lunes = this_week_monday if hoy == 1 else next_monday
+    martes = this_week_monday + timedelta(days=1) if hoy <= 2 else next_monday + timedelta(days=1)
+    miercoles = this_week_monday + timedelta(days=2) if hoy <= 3 else next_monday + timedelta(days=2)
+    jueves = this_week_monday + timedelta(days=3) if hoy <= 4 else next_monday + timedelta(days=3)
+    viernes = this_week_monday + timedelta(days=4) if hoy <= 5 else next_monday + timedelta(days=4)
+    sabado = this_week_monday + timedelta(days=5) if hoy <= 6 else next_monday + timedelta(days=5)
+    domingo = this_week_monday + timedelta(days=6) if hoy <= 7 else next_monday + timedelta(days=6)
     # lunes = datetime.now() - timedelta(days=datetime.now().weekday())
     # lunes = lunes.date()
     # martes = lunes + timedelta(days=1)
@@ -107,11 +118,6 @@ with open(archivo_pickle, "rb") as archivo:
     print('... Actualizando bases de datos')
     dbUpdate()
 
-    # Leer la lista de objetos desde el archivo pickle
-    with open(archivo_pickle, "rb") as f:
-        objetos_cargados = pickle.load(f)
-        print("Lista de objetos cargada desde el archivo:")
-        # print(objetos_cargados)
 
     # Extraigo todas las primitivas sorteadas
     combPrimiTodas = PrimiDB().combs
@@ -139,8 +145,8 @@ with open(archivo_pickle, "rb") as archivo:
                        combinacionesSeleccionadas)
 
     # Selecciono del total de combinaciones de primitiva, las que coinciden con la estación actual
-    primiStation = analiza(combPrimiTodas, currentSeason)
-    combinacionesSeleccionadas = seleccionaCombinaciones(primiStation)
+    primiSeason = analiza(combPrimiTodas, currentSeason)
+    combinacionesSeleccionadas = seleccionaCombinaciones(primiSeason)
     # Antes de comprobar si se añaden las combinaciones seleccionadas al histórico de primitivas
     # por estación del año, hay que asignar a las combinaciones la fecha del miercoles de la semana actual
     combinacionesSeleccionadas = list(map(lambda obj: setattr(obj, 'combDate', miercoles) or obj,
@@ -151,7 +157,7 @@ with open(archivo_pickle, "rb") as archivo:
 
     # Extraigo todas las primitivas sorteadas en lunes
     combPrimiLunes = [comb for comb in combPrimiTodas if comb.combDate.isoweekday() == cte.LUNES]
-    pickleLotoDb["primiLunes"] = combPrimiLunes
+    # pickleLotoDb["primiLunes"] = combPrimiLunes
 
     # Selecciono las combinaciones de primitiva en función de la frecuencia histórica de los números extraídos en lunes
     primiLunes = analiza(combPrimiLunes)
@@ -176,8 +182,8 @@ with open(archivo_pickle, "rb") as archivo:
                        combinacionesSeleccionadas)
 
     # Selecciono de entre las combinaciones de primitiva de los lunes, las que coinciden con la estación actual
-    primiStation = analiza(combPrimiLunes, currentSeason)
-    combinacionesSeleccionadas = seleccionaCombinaciones(primiStation)
+    primiSeason = analiza(combPrimiLunes, currentSeason)
+    combinacionesSeleccionadas = seleccionaCombinaciones(primiSeason)
     # Antes de comprobar si se añaden las combinaciones seleccionadas al histórico de primitivas de los lunes
     # por estación del año, hay que asignar a las combinaciones la fecha del lunes de la semana actual
     combinacionesSeleccionadas = list(map(lambda obj: setattr(obj, 'combDate', lunes) or obj,
@@ -188,7 +194,7 @@ with open(archivo_pickle, "rb") as archivo:
 
     # Extraigo todas las primitivas sorteadas en jueves
     combPrimiJueves = [comb for comb in combPrimiTodas if comb.combDate.isoweekday() == cte.JUEVES]
-    pickleLotoDb["primiJueves"] = combPrimiJueves
+    # pickleLotoDb["primiJueves"] = combPrimiJueves
 
     # Selecciono las combinaciones en función de la frecuencia histórica de los números extraídos en jueves
     primiJueves = analiza(combPrimiJueves)
@@ -213,8 +219,8 @@ with open(archivo_pickle, "rb") as archivo:
                        combinacionesSeleccionadas)
 
     # Selecciono de entre las combinaciones de primitiva de los jueves, las que coinciden con la estación actual
-    primiStation = analiza(combPrimiJueves, currentSeason)
-    combinacionesSeleccionadas = seleccionaCombinaciones(primiStation)
+    primiSeason = analiza(combPrimiJueves, currentSeason)
+    combinacionesSeleccionadas = seleccionaCombinaciones(primiSeason)
     # Antes de comprobar si se añaden las combinaciones seleccionadas al histórico de primitivas de los jueves
     # en función de la estación del año, hay que asignar a las combinaciones la fecha del jueves de la semana actual
     combinacionesSeleccionadas = list(map(lambda obj: setattr(obj, 'combDate', jueves) or obj,
@@ -225,7 +231,7 @@ with open(archivo_pickle, "rb") as archivo:
 
     # Extraigo todas las primitivas sorteadas en sábado
     combPrimiSabado = [comb for comb in combPrimiTodas if comb.combDate.isoweekday() == cte.SABADO]
-    pickleLotoDb["primiSabado"] = combPrimiSabado
+    # pickleLotoDb["primiSabado"] = combPrimiSabado
 
     # Selecciono las combinaciones de primitiva en función de la frecuencia histórica de los números extraídos en sábado
     primiSabados = analiza(combPrimiSabado)
@@ -250,8 +256,8 @@ with open(archivo_pickle, "rb") as archivo:
                        combinacionesSeleccionadas)
 
     # Selecciono de entre las combinaciones de primitiva de los sábados, las que coinciden con la estación actual
-    primiStation = analiza(combPrimiSabado, currentSeason)
-    combinacionesSeleccionadas = seleccionaCombinaciones(primiStation)
+    primiSeason = analiza(combPrimiSabado, currentSeason)
+    combinacionesSeleccionadas = seleccionaCombinaciones(primiSeason)
     # Antes de comprobar si se añaden las combinaciones seleccionadas al histórico de primitivas de los sábados,
     # en función de la estación del año, hay que asignar a las combinaciones la fecha del sábado de la semana actual
     combinacionesSeleccionadas = list(map(lambda obj: setattr(obj, 'combDate', sabado) or obj,
@@ -299,7 +305,7 @@ with open(archivo_pickle, "rb") as archivo:
     # Selecciono las combinaciones de euromillones en función de la frecuencia histórica de los números extraídos
     # en martes
     combEuroMartes = [comb for comb in combEuroTodas if comb.combDate.isoweekday() == cte.MARTES]
-    pickleLotoDb["euroMartes"] = combEuroMartes
+    # pickleLotoDb["euroMartes"] = combEuroMartes
 
     # Selecciono las combinaciones de euromillones en función de la frecuencia histórica de los números extraídos
     # en martes
@@ -339,7 +345,7 @@ with open(archivo_pickle, "rb") as archivo:
     # Selecciono las combinaciones de euromillones en función de la frecuencia histórica de los números extraídos
     # en viernes
     combEuroviernes = [comb for comb in combEuroTodas if comb.combDate.isoweekday() == cte.VIERNES]
-    pickleLotoDb["euroViernes"] = combEuroviernes
+    # pickleLotoDb["euroViernes"] = combEuroviernes
 
     # Selecciono las combinaciones de euromillones en función de la frecuencia histórica de los números extraídos
     # en viernes
@@ -376,6 +382,7 @@ with open(archivo_pickle, "rb") as archivo:
     printCombinaciones(f"euromillones de los viernes según estación actual: {cte.ESTACIONES.get(currentSeason)}",
                        combinacionesSeleccionadas)
 
+    comprueba_premios(ano_actual, semana_actual - 1, pickleLotoDb)
     # sql_savecomb(primicomb)
     # sql_savecomb(eurocomb)
 

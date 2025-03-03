@@ -142,15 +142,159 @@ def combinacionExistente(comb: Union[PrimiComb, EuroComb], listaComb: List[Union
 
 def check_to_add(comb_sel: List[Union[PrimiComb, EuroComb]], comb_list: List) -> List:
     """
-    Comprueba si las combinaciones de comb_sel ya existen en comb_list y si no existen, las añade.
+    Comprueba si en comb_list hay combinaciones con la misma fecha que comb_sel.
+    Si no las hay, comprueba si ya existen en comb_list y, si no existen, las añade.
+
     IMPORTANTE: antes de llamar a esta función hay que asignarle fecha a la combinación
     :param comb_sel: lista de combinaciones a comprobar si se añaden o no al histórico
     :param comb_list: lista de combinaciones histórica
     :return: lista de combinaciones histórica actualizada
     """
+    list_comb_to_add = []
     for comb in comb_sel:
+        add_comb = False
+        if not any([comb.combDate == allcomb.combDate for allcomb in comb_list]):
+            # no hay combinaciones guardadas con la fecha de comb
             if not any([comb.compara_sin_fecha(allcomb) for allcomb in comb_list]):
-                comb_list.append(comb)
-            else:
-                print(f"{__name__}. La combinación {comb} ya se había guardado anteriormente")
+                # tampoco hayguardada ninguna combinación igual que comb
+                add_comb = True
+                list_comb_to_add.append(comb)
+        if not add_comb:
+            print(f"{__name__}. La combinación {comb} ya se había guardado anteriormente")
+    comb_list += list_comb_to_add
     return comb_list
+
+
+def comprueba_premios(year:int, week_number:int, combinaciones: Dict):
+    """
+    Para una determinada semana de un determinado año, comprueba los aciertos comparando la combinación ganadora
+    con las combinaciones seleccionadas.
+    :param year: año a evaluar
+    :param week_number: semana a evaluar
+    :param combinaciones: diccionario con todas las combinaciones ganadoras y las seleccionadas por el programa
+    :return: 0 si all is right
+    """
+    combinaciones_primi_ganadoras = combinaciones.get("primiResults")
+    if combinaciones_primi_ganadoras is None:
+        print("\n\t No se han encontrado las combinaciones ganadoras de la primitiva en la semana indicada")
+    else:
+        comb_primi_ganadoras_ultima_semana = [comb for comb in combinaciones_primi_ganadoras
+                                              if comb.combDate.year==year and
+                                              comb.combDate.isocalendar().week == week_number]
+        # comb_primi_sel = combinaciones.get("allPrimi") + \
+        #                  combinaciones.get("allPrimiSeason") + \
+        #                  combinaciones.get("allPrimiWeek") + \
+        #                  combinaciones.get("primiLunes") + \
+        #                  combinaciones.get("primiLunesSeason") + \
+        #                  combinaciones.get("primiLunesWeek") + \
+        #                  combinaciones.get("primiJueves") + \
+        #                  combinaciones.get("primiJuevesSeason") + \
+        #                  combinaciones.get("primiJuevesWeek") + \
+        #                  combinaciones.get("primiSabado") + \
+        #                  combinaciones.get("primiSabadoSeason") + \
+        #                  combinaciones.get("primiSabadoWeek")
+        primi_calc_group = [field for field in combinaciones.keys() if "primi" in str(field).lower() and not "results" in str(field).lower()]
+
+        sin_aciertos = True
+        for sorteo in primi_calc_group:
+            primi_group = combinaciones.get(sorteo)
+            combinaciones_primi_seleccionadas = [comb for comb in primi_group
+                                                 if comb.combDate.year == year and
+                                                 comb.combDate.isocalendar().week == week_number]
+            for comb1 in combinaciones_primi_seleccionadas:
+                for comb2 in comb_primi_ganadoras_ultima_semana:
+                    aciertos_msg = cuenta_aciertos(comb1, comb2)
+                    if aciertos_msg:
+                        aciertos_msg = f"{sorteo}: {cuenta_aciertos(comb1, comb2)}"
+                        sin_aciertos = False
+                        print(aciertos_msg)
+        if sin_aciertos:
+            msg = f"La semana {week_number} no ha habido aciertos de primitiva"
+            print(msg)
+
+    combinaciones_euro_ganadoras = combinaciones.get("euroResults")
+    if combinaciones_euro_ganadoras is None:
+        print("\n\t No se han encontrado las combinaciones ganadoras de euromillones en la semana indicada")
+    else:
+        comb_euro_ganadoras_ultima_semana = [comb for comb in combinaciones_euro_ganadoras
+                                             if comb.combDate.year==year and
+                                             comb.combDate.isocalendar().week==week_number]
+        # comb_euro_sel = combinaciones.get("allEuro") + \
+        #                 combinaciones.get("allEuroSeason") + \
+        #                 combinaciones.get("allEuroWeek") + \
+        #                 combinaciones.get("euroMartes") + \
+        #                 combinaciones.get("euroMartesSeason") + \
+        #                 combinaciones.get("euroMartesWeek") + \
+        #                 combinaciones.get("euroViernes") + \
+        #                 combinaciones.get("euroViernesSeason") + \
+        #                 combinaciones.get("euroViernesWeek")
+        euro_calc_group = [field for field in combinaciones.keys() if "euro" in str(field).lower() and not "results" in str(field).lower()]
+        # combinaciones_euro_seleccionadas = [comb for comb in comb_euro_sel
+        #                                     if comb.combDate.year == year and
+        #                                     comb.combDate.isocalendar().week == week_number]
+
+        sin_aciertos = True
+        for sorteo in euro_calc_group:
+            euro_group = combinaciones.get(sorteo)
+            combinaciones_euro_seleccionadas = [comb for comb in euro_group
+                                                 if comb.combDate.year == year and
+                                                 comb.combDate.isocalendar().week == week_number]
+            for comb1 in combinaciones_euro_seleccionadas:
+                for comb2 in comb_euro_ganadoras_ultima_semana:
+                    aciertos_msg = cuenta_aciertos(comb1, comb2)
+                    if aciertos_msg:
+                        aciertos_msg = f"{sorteo}: {cuenta_aciertos(comb1, comb2)}"
+                        sin_aciertos = False
+                        print(aciertos_msg)
+        if sin_aciertos:
+            msg = f"La semana {week_number} no ha habido aciertos de euromillón"
+            print(msg)
+
+    return 0  # alright
+
+
+def cuenta_aciertos(comb1: Union[PrimiComb, EuroComb], comb2:Union[PrimiComb, EuroComb]) -> Union[str, None]:
+    """
+    comprueba cuantos números de comb1 aparecen en comb2. Comb2 debe ser una combinación premiada
+    :param comb1: combinación de primitiva o euromillones
+    :param comb2: idem comb1
+    :return: número de aciertos o None si comb1 y comb2 son de distinto tipo
+    """
+    if type(comb1) != type(comb2):
+        print(f"{comb1} y {comb2} son de distinto tipo. Deben ser ambas de euromillones o de primitiva")
+        return
+
+    # atributos de los números
+    num_fields = [num_attrib for num_attrib in comb1.__dict__.keys() if "n" in num_attrib]
+    # hago un set con todos los números de comb1 y comb2
+    result = set([getattr(comb1, n) for n in num_fields] + [getattr(comb2, n) for n in num_fields])
+    aciertos = 2 * len(num_fields) - len(result)
+
+    msg = ""
+    if comb1.__class__.__name__ == "PrimiComb":
+        reintegro = True if comb1.re == comb2.re else False
+        if aciertos >= 3:
+            msg = f"En {comb1} ha habido {aciertos} aciertos sobre {comb2}"
+            if reintegro:
+                msg = msg + f" y el reintegro, {comb1.re}"
+        elif reintegro:
+            msg = f"En {comb1} se ha acertado el reintegro sobre {comb2}"
+        # else:
+        #     msg = f"{comb1} no ha tenido aciertos"
+    else:   # comprobación de euromillones
+        comb1_y_comb2_stars = [comb1.e1, comb1.e2, comb2.e1, comb2.e2]
+        estrellas_acertadas = 4 - len(set(comb1_y_comb2_stars))
+        if aciertos == 1:
+            if estrellas_acertadas == 2:
+                msg = f"En {comb1} se ha acertado {aciertos} número"
+                msg = msg + f" y {estrellas_acertadas} estrellas sobre {comb2}."
+        elif aciertos:  # hay 2 aciertos o más
+            msg = f"En {comb1} se han acertado {aciertos} números sobre {comb2}"
+            if estrellas_acertadas:
+                msg1 = f" y {estrellas_acertadas} estrella"
+                msg2 = f" y {estrellas_acertadas} estrellas"
+                msg = msg + msg1 if estrellas_acertadas == 1 else msg + msg2
+        # else:
+        #     msg = f"{comb1} no ha tenido aciertos"
+    return msg
+

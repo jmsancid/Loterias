@@ -25,8 +25,9 @@ LOTOPICKERFILE = 'loterias.pkl' # contiene un diccionario con los tipos de sorte
 # combinaciones como valor
 EUROWEB = 'https://www.euromillones.com.es/resultados-anteriores.html'
 # PRIMIWEB = 'https://www.loterias.com/la-primitiva/resultados/' + cur_year
-PRIMIWEB = 'https://www.loteriasyapuestas.es/es/resultados/primitiva'  # NULO en 2025. Se extraen los resultados de
+# PRIMIWEB = 'https://www.loteriasyapuestas.es/es/resultados/primitiva'  # NULO en 2025. Se extraen los resultados de
 # otra forma
+PRIMIWEB = 'https://www.loteriasyapuestas.es/servicios/buscadorSorteos'  # Actualización marzo 2025
 PRIMIDAYS = (46, 1, 4, 6)  # Días de primitiva. Domingo es día 0. Primitiva es lunes, jueves y sábado: 1, 4 y 6. El 46
 # representa el total de sorteos de primitiva de jueves y sábado
 EURODAYS = (25, 2, 5)  # Días de euromillones. Domingo es día 0. Euromilones es martes y viernes: 2 y 5. El 25
